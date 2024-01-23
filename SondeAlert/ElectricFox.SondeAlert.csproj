@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Geolocation" Version="1.2.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
   </ItemGroup>
 </Project>
