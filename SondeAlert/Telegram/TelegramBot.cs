@@ -100,34 +100,21 @@ namespace ElectricFox.SondeAlert.Telegram
 
         private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
-            // Only process Message updates: https://core.telegram.org/bots/api#message
             if (update.Message is not { } message)
+            {
                 return;
-            // Only process text messages
+            }
+
             if (message.Text is not { } messageText)
+            {
                 return;
+            }
 
             var chatId = message.Chat.Id;
 
             this.logger.LogInformation($"Received a '{messageText}' message in chat {chatId}.");
 
-            // Echo received message text
-
-            ReplyKeyboardMarkup replyKeyboardMarkup = new(new[]
-                {
-                    new KeyboardButton[] { "Subscribe to alerts" },
-                })
-            {
-                ResizeKeyboard = true
-            };
-
-            await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "Welcome to SondeAlert",
-                replyToMessageId: update.Message.MessageId,
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
+            // TODO: Implement some sort of subscriber system
         }
 
         private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
