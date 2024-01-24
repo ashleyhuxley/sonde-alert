@@ -31,3 +31,4 @@ The lovely people at [SondeHub](https://sondehub.org), one of the major radio so
 
 - [Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot) 
 - [MQTTnet](https://github.com/dotnet/MQTTnet)
+- [Geolocation](https://github.com/scottschluer/geolocation)
