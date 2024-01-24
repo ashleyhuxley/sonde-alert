@@ -20,9 +20,14 @@ The lovely people at [SondeHub](https://sondehub.org), one of the major radio so
 
 ## What are the configuration options?
 
-- *SondeHubMqttUrl*: THe URL of the SondeHub MQTT server. Usually ws-reader.v2.sondehub.org
-- *HomeLat*: The GPS coordinate latitude value of the home coordinates
-- *HomeLon*: The GPS coordinate longitude value of the home coordinates
-- *AlertRangeKm*: The maximum distance (in kilometers) from the home coordinates that a predicted landing point should be in order to trigger an alert.
-- *TelegramBotApiKey*: The API key of the telegram bot, speak to the @BotFather account to set up a new bot and get this.
-- *Subscribers*: A list of telegram Chat IDs to send alerts to. Chat IDs can be found by talking to the bot - the bot will log the Chat ID as an information message.
+- **SondeHubMqttUrl**: THe URL of the SondeHub MQTT server. Usually ws-reader.v2.sondehub.org
+- **HomeLat**: The GPS coordinate latitude value of the home coordinates
+- **HomeLon**: The GPS coordinate longitude value of the home coordinates
+- **AlertRangeKm**: The maximum distance (in kilometers) from the home coordinates that a predicted landing point should be in order to trigger an alert.
+- **TelegramBotApiKey**: The API key of the telegram bot, speak to the @BotFather account to set up a new bot and get this.
+- **Subscribers**: A list of telegram Chat IDs to send alerts to. Chat IDs can be found by talking to the bot - the bot will log the Chat ID as an information message.
+
+## Libraries Used
+
+- [Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot) 
+- [MQTTnet](https://github.com/dotnet/MQTTnet)
