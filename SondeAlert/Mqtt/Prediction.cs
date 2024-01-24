@@ -1,4 +1,4 @@
-﻿namespace ElectricFox.SondeAlert
+﻿namespace ElectricFox.SondeAlert.Mqtt
 {
     public class Datum
     {
