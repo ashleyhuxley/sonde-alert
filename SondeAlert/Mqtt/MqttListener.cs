@@ -7,9 +7,9 @@ namespace ElectricFox.SondeAlert.Mqtt
 {
     internal class MqttListener : IDisposable
     {
-        public delegate void NearbySondeAlert(SondeAlertArgs args);
+        public delegate void SondeDataReady(SondeAlertArgs args);
 
-        public event NearbySondeAlert? OnNearbySondeAlert;
+        public event SondeDataReady? OnSondeDataReady;
 
         private readonly SondeAlertOptions options;
 
@@ -86,39 +86,32 @@ namespace ElectricFox.SondeAlert.Mqtt
             builder.WithUri(this.options.SondeHubMqttUrl);
         }
 
-        private async Task ClientMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
+        private Task ClientMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
         {
             // Deserialize incoming MQTT message
             var prediction = JsonSerializer.Deserialize<Prediction>(arg.ApplicationMessage.ConvertPayloadToString());
             if (prediction is null)
             {
                 this.logger.LogWarning("Unable to decode message");
-                return;
+                return Task.CompletedTask;
             }
-
-            this.logger.LogTrace($"Have prediciotn for serial {prediction.serial}");
 
             if (!prediction.data.Any())
             {
                 this.logger.LogWarning("No prediction data found");
-                return;
+                return Task.CompletedTask;
             }
 
             // Get the final predicted position of the sonde
             var landingData = prediction.data.OrderBy(d => d.time).Last();
 
-            // Calculate distance to home
-            var home = new Coordinate(this.options.HomeLat, this.options.HomeLon);
             var predictedDestination = new Coordinate(landingData.lat, landingData.lon);
 
-            var distance = GeoCalculator.GetDistance(home, predictedDestination, 2, DistanceUnit.Miles);
+            this.logger.LogTrace($"Sonde {prediction.serial} predicted to land at {landingData.time.ToDateTime()} location: {landingData.lat}, {landingData.lon}");
 
-            this.logger.LogInformation($"Sonde {prediction.serial} is predicted to land at {landingData.time.ToDateTime()}, {distance} miles away");
-
-            if (distance < options.AlertRangeKm)
-            {
-                OnNearbySondeAlert?.Invoke(new SondeAlertArgs(prediction.serial, predictedDestination, landingData.time.ToDateTime()));
-            }
+            // Tell the world about it
+            OnSondeDataReady?.Invoke(new SondeAlertArgs(prediction.serial, predictedDestination, landingData.time.ToDateTime()));
+            return Task.CompletedTask;
         }
 
         protected virtual void Dispose(bool disposing)
