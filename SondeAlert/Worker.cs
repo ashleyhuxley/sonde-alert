@@ -53,7 +53,7 @@ public sealed class Worker : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             // Send a Telegram message once every n seconds
-            await bot.ProcessMessageFromQueueAsync();
+            await bot.ProcessMessageFromQueueAsync(stoppingToken);
             await Task.Delay(TelegramMessageDelaySeconds * 1000, stoppingToken);
         }
 

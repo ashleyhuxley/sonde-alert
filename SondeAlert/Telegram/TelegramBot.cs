@@ -1,10 +1,10 @@
 ﻿using Geolocation;
+using System.Threading;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ElectricFox.SondeAlert.Telegram
 {
@@ -21,6 +21,10 @@ namespace ElectricFox.SondeAlert.Telegram
         private readonly CancellationTokenSource cts = new();
 
         private readonly Queue<QueuedMessage> messageQueue = new();
+
+        private readonly Dictionary<long, ConversationFlow> conversations = new();
+
+        private readonly Dictionary<long, NotificationProfile> notificationProfiles = new();
 
         public TelegramBot(
             string apiKey,
@@ -81,7 +85,7 @@ namespace ElectricFox.SondeAlert.Telegram
         /// <summary>
         /// Send a message from the queue, if there is one.
         /// </summary>
-        public async Task ProcessMessageFromQueueAsync()
+        public async Task ProcessMessageFromQueueAsync(CancellationToken cancellationToken)
         {
             if (this.botClient is null || this.messageQueue.Count == 0)
             {
@@ -94,27 +98,44 @@ namespace ElectricFox.SondeAlert.Telegram
                 chatId: message.ChatId,
                 text: message.MessageContent,
                 parseMode: ParseMode.MarkdownV2,
-                cancellationToken: CancellationToken.None)
+                cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
         }
 
         private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
-            if (update.Message is not { } message)
-            {
-                return;
-            }
-
-            if (message.Text is not { } messageText)
-            {
-                return;
-            }
+            if (this.botClient is null) { return; }
+            if (update.Message is not { } message) { return; }
+            if (message.Text is not { } messageText) { return; }
 
             var chatId = message.Chat.Id;
 
             this.logger.LogInformation($"Received a '{messageText}' message in chat {chatId}.");
 
-            // TODO: Implement some sort of subscriber system
+            if (messageText.Length > 100)
+            {
+                await this.botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Sorry, that message is too long.".EscapeText(),
+                    parseMode: ParseMode.MarkdownV2,
+                    cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+            }
+
+            if (!conversations.ContainsKey(chatId))
+            {
+                conversations.Add(chatId, new ConversationFlow());
+            }
+
+            var flow = conversations[chatId];
+            var response = flow.GetResponse(messageText);
+
+            await this.botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: response.EscapeText(),
+                parseMode: ParseMode.MarkdownV2,
+                cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
         }
 
         private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)

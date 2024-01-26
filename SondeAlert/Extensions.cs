@@ -13,7 +13,7 @@ namespace ElectricFox.SondeAlert
 
         public static string EscapeText(this string text)
         {
-            const string EscapeChars = "-.=+*`_[]";
+            const string EscapeChars = "-.=+*`_[]!";
 
             var sb = new StringBuilder();
             foreach (char c in text)
