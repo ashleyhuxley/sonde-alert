@@ -24,8 +24,6 @@ namespace ElectricFox.SondeAlert.Telegram
 
         private readonly Dictionary<long, ConversationFlow> conversations = new();
 
-        private readonly Dictionary<long, NotificationProfile> notificationProfiles = new();
-
         public TelegramBot(
             string apiKey,
             ILogger logger,
