@@ -6,7 +6,8 @@ namespace ElectricFox.SondeAlert.Mqtt
         (
             string SondeSerial,
             Coordinate PredictedlandingLocation,
-            DateTime PredicatedLandingTimeUtc
+            DateTime PredicatedLandingTimeUtc,
+            string Type
         )
     { }
 }

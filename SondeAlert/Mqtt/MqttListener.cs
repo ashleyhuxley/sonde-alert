@@ -105,7 +105,7 @@ namespace ElectricFox.SondeAlert.Mqtt
             this.logger.LogDebug($"Sonde {prediction.serial} predicted to land at {landingData.time.ToDateTime()} location: {landingData.lat}, {landingData.lon}");
 
             // Tell the world about it
-            this.OnSondeDataReady?.Invoke(new SondeAlertArgs(prediction.serial, predictedDestination, landingData.time.ToDateTime()));
+            this.OnSondeDataReady?.Invoke(new SondeAlertArgs(prediction.serial, predictedDestination, landingData.time.ToDateTime(), prediction.type));
             return Task.CompletedTask;
         }
 
