@@ -19,8 +19,6 @@ public sealed class Worker : BackgroundService
 
     private readonly SondeAlertOptions options;
 
-    private const int TelegramMessageDelaySeconds = 5;
-
     private readonly List<UserProfile> UserProfiles = new();
 
     private readonly Dictionary<long, ConversationFlow> ConversationFlows = new();
@@ -57,7 +55,7 @@ public sealed class Worker : BackgroundService
         {
             // Send a Telegram message once every n seconds
             await this.bot.ProcessMessageFromQueueAsync(stoppingToken);
-            await Task.Delay(TelegramMessageDelaySeconds * 1000, stoppingToken);
+            await Task.Delay(this.options.ProcessTimerSeconds * 1000, stoppingToken);
         }
 
         await this.mqttListener.StopAsync(stoppingToken);

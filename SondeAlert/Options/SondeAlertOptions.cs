@@ -4,6 +4,8 @@
     {
         public string? ProfilePath { get; set; }
 
+        public int ProcessTimerSeconds { get; set; } = 5;
+
         public SondeAlertOptions Verify()
         {
             if (string.IsNullOrEmpty(ProfilePath))
