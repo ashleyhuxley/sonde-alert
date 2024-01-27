@@ -43,12 +43,13 @@ public sealed class Worker : BackgroundService
 
         this.LoadUserProfiles();
 
-        this.bot.OnMessageReceived += Bot_OnMessageReceived;
+        // Setup Telegram bot
+        this.bot.OnMessageReceived += this.Bot_OnMessageReceived;
 
         await this.bot.StartAsync(stoppingToken);
 
         // Set up MQTT listener
-        this.mqttListener.OnSondeDataReady += OnSondeDataReady;
+        this.mqttListener.OnSondeDataReady += this.OnSondeDataReady;
         await this.mqttListener.StartAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -73,7 +74,7 @@ public sealed class Worker : BackgroundService
 
         try
         {
-            var profilesJson = File.ReadAllText(options.ProfilePath);
+            var profilesJson = File.ReadAllText(this.options.ProfilePath);
             var profiles = JsonSerializer.Deserialize<IEnumerable<UserProfile>>(profilesJson);
 
             if (profiles is null)
@@ -87,6 +88,7 @@ public sealed class Worker : BackgroundService
         catch (Exception ex)
         {
             this.logger.LogCritical(ex, $"Exception saving profiles: {ex.Message}");
+            return;
         }
 
         this.logger.LogInformation($"{this.UserProfiles.Count} profiles loaded.");
@@ -94,7 +96,7 @@ public sealed class Worker : BackgroundService
 
     private void SaveProfiles()
     {
-        if (options.ProfilePath is null)
+        if (this.options.ProfilePath is null)
         {
             return;
         }
@@ -104,7 +106,7 @@ public sealed class Worker : BackgroundService
         try
         {
             var json = JsonSerializer.Serialize(this.UserProfiles);
-            File.WriteAllText(options.ProfilePath, json);
+            File.WriteAllText(this.options.ProfilePath, json);
         }
         catch (Exception ex)
         {
@@ -114,8 +116,6 @@ public sealed class Worker : BackgroundService
 
     private async void Bot_OnMessageReceived(long chatId, string message)
     {
-        if (this.bot is null) {  return; }
-
         if (!this.ConversationFlows.ContainsKey(chatId))
         {
             var startingPoint = this.UserProfiles.Any(p => p.ChatId == chatId) 
@@ -138,15 +138,17 @@ public sealed class Worker : BackgroundService
             });
 
             this.SaveProfiles();
-        } else if (flow.ConversationFlowPoint == ConversationFlowPoint.Start)
+        }
+        else if (flow.ConversationFlowPoint == ConversationFlowPoint.Deactivate)
         {
-            // If they're back here it means they want to deactivate
-            var profile = this.UserProfiles.SingleOrDefault(p => p.ChatId == chatId); ;
+            var profile = this.UserProfiles.SingleOrDefault(p => p.ChatId == chatId);
             if (profile is not null)
             {
                 this.UserProfiles.Remove(profile);
                 this.SaveProfiles();
             }
+            
+            this.ConversationFlows.Remove(chatId);
         }
 
         var outgoingMessage = new OutgoingMessage(chatId, response, ParseMode.Html);
@@ -156,7 +158,7 @@ public sealed class Worker : BackgroundService
 
     private void OnSondeDataReady(SondeAlertArgs args)
     {
-        foreach (var profile in UserProfiles)
+        foreach (var profile in this.UserProfiles)
         {
             var cacheEntry = new NotificationCacheEntry(profile.ChatId, args.SondeSerial);
 
@@ -181,6 +183,7 @@ public sealed class Worker : BackgroundService
             var messageText = $"<b>Nearby Sonde Landing Alert!</b>\n\nTime: {landingTime}\nLocation: {lat}, {lon}\n\n{sondeHubUrl}\n\n{mapsUrl}";
 
             var message = new OutgoingMessage(profile.ChatId, messageText, ParseMode.Html);
+
             this.bot.Enqueue(message);
             this.NotificationCache.Add(cacheEntry);
         }

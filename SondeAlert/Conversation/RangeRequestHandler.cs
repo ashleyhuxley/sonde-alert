@@ -1,6 +1,6 @@
 ﻿namespace ElectricFox.SondeAlert.Conversation
 {
-    public sealed class RangeQuestion : IRequestHandler
+    public sealed class RangeRequestHandler : IRequestHandler
     {
         public string GetResponse(ConversationFlow flow, string input)
         {

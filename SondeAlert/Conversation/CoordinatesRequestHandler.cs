@@ -1,6 +1,6 @@
 ﻿namespace ElectricFox.SondeAlert.Conversation
 {
-    public sealed class CoordsQuestion : IRequestHandler
+    public sealed class CoordinatesRequestHandler : IRequestHandler
     {
         public string GetResponse(ConversationFlow flow, string input)
         {

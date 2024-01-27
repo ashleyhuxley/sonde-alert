@@ -40,14 +40,14 @@ namespace ElectricFox.SondeAlert.Telegram
                 AllowedUpdates = Array.Empty<UpdateType>()
             };
 
-            botClient.StartReceiving(
-                updateHandler: HandleUpdateAsync,
-                pollingErrorHandler: HandlePollingErrorAsync,
+            this.botClient.StartReceiving(
+                updateHandler: this.HandleUpdateAsync,
+                pollingErrorHandler: this.HandlePollingErrorAsync,
                 receiverOptions: receiverOptions,
                 cancellationToken: cancellationToken
             );
 
-            var me = await botClient.GetMeAsync().ConfigureAwait(false);
+            var me = await this.botClient.GetMeAsync().ConfigureAwait(false);
 
             this.logger.LogInformation($"Logged in to Telegram as {me.FirstName} with ID {me.Id}.");
         }
@@ -82,7 +82,7 @@ namespace ElectricFox.SondeAlert.Telegram
 
             var chatId = message.Chat.Id;
 
-            this.logger.LogInformation($"Received a '{messageText}' message in chat {chatId}.");
+            this.logger.LogDebug($"Received a '{messageText}' message in chat {chatId}.");
 
             // Reject anything over 100 characters. Probably spam.
             if (messageText.Length > 100)
@@ -93,6 +93,8 @@ namespace ElectricFox.SondeAlert.Telegram
                     parseMode: ParseMode.MarkdownV2,
                     cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
+
+                return;
             }
 
             OnMessageReceived?.Invoke(chatId, messageText);
@@ -117,7 +119,7 @@ namespace ElectricFox.SondeAlert.Telegram
         /// <param name="message">The message to be enqueued</param>
         public void Enqueue(OutgoingMessage message)
         {
-            messageQueue.Enqueue(message);
+            this.messageQueue.Enqueue(message);
         }
 
         /// <summary>

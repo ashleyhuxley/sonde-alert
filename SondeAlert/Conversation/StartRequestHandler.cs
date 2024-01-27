@@ -1,6 +1,6 @@
 ﻿namespace ElectricFox.SondeAlert.Conversation
 {
-    public sealed class StartQuestion : IRequestHandler
+    public sealed class StartRequestHandler : IRequestHandler
     {
         private const string response = 
             "Welcome to SondeAlert!\n\nTo get started, please enter your home GPS coordinates as a comma separated pair of decimals, e.g. \n\n51.5056, -0.0754";

@@ -5,6 +5,7 @@
         Start,
         AwaitingCoords,
         AwaitingRange,
-        Active
+        Active,
+        Deactivate
     }
 }

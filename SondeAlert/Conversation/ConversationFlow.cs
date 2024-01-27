@@ -15,10 +15,10 @@
 
         private Dictionary<ConversationFlowPoint, IRequestHandler> questions => new()
         {
-            { ConversationFlowPoint.Start, new StartQuestion() },
-            { ConversationFlowPoint.AwaitingCoords, new CoordsQuestion() },
-            { ConversationFlowPoint.Active, new DeactivateQuestion() },
-            { ConversationFlowPoint.AwaitingRange, new RangeQuestion() },
+            { ConversationFlowPoint.Start, new StartRequestHandler() },
+            { ConversationFlowPoint.AwaitingCoords, new CoordinatesRequestHandler() },
+            { ConversationFlowPoint.Active, new DeactivateRequestHandler() },
+            { ConversationFlowPoint.AwaitingRange, new RangeRequestHandler() },
         };
 
         public ConversationFlow(ConversationFlowPoint startingPoint)

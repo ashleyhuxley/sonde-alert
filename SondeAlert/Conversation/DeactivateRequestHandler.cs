@@ -1,6 +1,6 @@
 ﻿namespace ElectricFox.SondeAlert.Conversation
 {
-    public sealed class DeactivateQuestion : IRequestHandler
+    public sealed class DeactivateRequestHandler : IRequestHandler
     {
         public string GetResponse(ConversationFlow flow, string input)
         {
@@ -9,7 +9,7 @@
                 return "Unknown command.";
             }
 
-            flow.ConversationFlowPoint = ConversationFlowPoint.Start;
+            flow.ConversationFlowPoint = ConversationFlowPoint.Deactivate;
             flow.Range = 0;
             flow.Latitude = 0;
             flow.Longitude = 0;
