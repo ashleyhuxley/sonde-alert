@@ -1,19 +1,19 @@
-﻿using Geolocation;
+﻿using ElectricFox.SondeAlert.Options;
+using Geolocation;
+using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Client;
 using System.Text.Json;
 
 namespace ElectricFox.SondeAlert.Mqtt
 {
-    internal class MqttListener : IDisposable
+    public class MqttListener : IMqttListener
     {
-        public delegate void SondeDataReady(SondeAlertArgs args);
+        public event Action<SondeAlertArgs>? OnSondeDataReady;
 
-        public event SondeDataReady? OnSondeDataReady;
+        private readonly SondeHubOptions options;
 
-        private readonly SondeAlertOptions options;
-
-        private readonly ILogger logger;
+        private readonly ILogger<MqttListener> logger;
 
         private bool disposedValue;
 
@@ -26,9 +26,11 @@ namespace ElectricFox.SondeAlert.Mqtt
         /// </summary>
         /// <param name="options">MQTT and location/range settings</param>
         /// <param name="logger">A logger to which to log information</param>
-        public MqttListener(SondeAlertOptions options, ILogger logger)
+        public MqttListener(
+            IOptions<SondeHubOptions> options, 
+            ILogger<MqttListener> logger)
         {
-            this.options = options;
+            this.options = options.Value.Verify();
             this.logger = logger;
         }
 
@@ -83,7 +85,7 @@ namespace ElectricFox.SondeAlert.Mqtt
 
         private void Configure(MqttClientWebSocketOptionsBuilder builder)
         {
-            builder.WithUri(this.options.SondeHubMqttUrl);
+            builder.WithUri(this.options.MqttUrl);
         }
 
         private Task ClientMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)

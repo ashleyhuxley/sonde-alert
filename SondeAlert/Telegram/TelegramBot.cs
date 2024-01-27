@@ -1,5 +1,5 @@
-﻿using Geolocation;
-using System.Threading;
+﻿using ElectricFox.SondeAlert.Options;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -8,38 +8,32 @@ using Telegram.Bot.Types.Enums;
 
 namespace ElectricFox.SondeAlert.Telegram
 {
-    internal class TelegramBot
+    internal class TelegramBot : ITelegramBot
     {
-        private readonly string apiKey;
+        private readonly TelegramOptions options;
 
-        private readonly ILogger logger;
-
-        private readonly IEnumerable<long> subscribers;
+        private readonly ILogger<TelegramBot> logger;
 
         private TelegramBotClient? botClient;
 
-        private readonly CancellationTokenSource cts = new();
+        private readonly Queue<OutgoingMessage> messageQueue = new();
 
-        private readonly Queue<QueuedMessage> messageQueue = new();
-
-        private readonly Dictionary<long, ConversationFlow> conversations = new();
+        public event Action<long, string>? OnMessageReceived;
 
         public TelegramBot(
-            string apiKey,
-            ILogger logger,
-            IEnumerable<long> subscribers)
+            IOptions<TelegramOptions> options,
+            ILogger<TelegramBot> logger)
         {
             this.logger = logger;
-            this.apiKey = apiKey;
-            this.subscribers = subscribers;
+            this.options = options.Value.Verify();
         }
 
         /// <summary>
         /// Start the bot and listen for incoming messages
         /// </summary>
-        public async Task StartAsync()
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            this.botClient = new TelegramBotClient(apiKey);
+            this.botClient = new TelegramBotClient(options.BotApiKey);
 
             ReceiverOptions receiverOptions = new()
             {
@@ -50,7 +44,7 @@ namespace ElectricFox.SondeAlert.Telegram
                 updateHandler: HandleUpdateAsync,
                 pollingErrorHandler: HandlePollingErrorAsync,
                 receiverOptions: receiverOptions,
-                cancellationToken: cts.Token
+                cancellationToken: cancellationToken
             );
 
             var me = await botClient.GetMeAsync().ConfigureAwait(false);
@@ -59,30 +53,10 @@ namespace ElectricFox.SondeAlert.Telegram
         }
 
         /// <summary>
-        /// Add an alert to the internal queue, to be sent to subscribers
+        /// Send the next message from the queue, if there is one
         /// </summary>
-        /// <param name="serial">Serial number of the sonde to alert</param>
-        /// <param name="landingLocation">Predicted landing location GPS coords</param>
-        /// <param name="landingTime">Predicted landing time UTC</param>
-        public void EnqueueAlert(string serial, Coordinate landingLocation, DateTime landingTime)
-        {
-            var lat = landingLocation.Latitude.FormatCoordinate();
-            var lon = landingLocation.Longitude.FormatCoordinate();
-
-            var sondeHubUrl = string.Format(UrlConstants.SondeHubUrl, serial);
-            var mapsUrl = string.Format(UrlConstants.GoogleMapsUrl, lat, lon);
-
-            var messageText = $"*Nearby Sonde Landing Alert*\\!\n\nTime: {landingTime}\nLocation: {lat}, {lon}\n\n{sondeHubUrl}\n\n{mapsUrl}";
-
-            foreach (var subscriber in subscribers)
-            {
-                messageQueue.Enqueue(new QueuedMessage(messageText.EscapeText(), subscriber));
-            }
-        }
-
-        /// <summary>
-        /// Send a message from the queue, if there is one.
-        /// </summary>
+        /// <param name="cancellationToken">A cancellation token to cancel the async operation</param>
+        /// <exception cref="InvalidOperationException">Attempting to send a message before starting the bot will throw this exception.</exception>
         public async Task ProcessMessageFromQueueAsync(CancellationToken cancellationToken)
         {
             if (this.botClient is null || this.messageQueue.Count == 0)
@@ -94,8 +68,8 @@ namespace ElectricFox.SondeAlert.Telegram
 
             await this.botClient.SendTextMessageAsync(
                 chatId: message.ChatId,
-                text: message.MessageContent,
-                parseMode: ParseMode.MarkdownV2,
+                text: message.MessageText,
+                parseMode: message.ParseMode,
                 cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
         }
@@ -110,6 +84,7 @@ namespace ElectricFox.SondeAlert.Telegram
 
             this.logger.LogInformation($"Received a '{messageText}' message in chat {chatId}.");
 
+            // Reject anything over 100 characters. Probably spam.
             if (messageText.Length > 100)
             {
                 await this.botClient.SendTextMessageAsync(
@@ -120,20 +95,7 @@ namespace ElectricFox.SondeAlert.Telegram
                         .ConfigureAwait(false);
             }
 
-            if (!conversations.ContainsKey(chatId))
-            {
-                conversations.Add(chatId, new ConversationFlow());
-            }
-
-            var flow = conversations[chatId];
-            var response = flow.GetResponse(messageText);
-
-            await this.botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: response.EscapeText(),
-                parseMode: ParseMode.MarkdownV2,
-                cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
+            OnMessageReceived?.Invoke(chatId, messageText);
         }
 
         private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
@@ -147,6 +109,36 @@ namespace ElectricFox.SondeAlert.Telegram
 
             this.logger.LogError(ErrorMessage);
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Enqueue a message to be sent later
+        /// </summary>
+        /// <param name="message">The message to be enqueued</param>
+        public void Enqueue(OutgoingMessage message)
+        {
+            messageQueue.Enqueue(message);
+        }
+
+        /// <summary>
+        /// Send a message immedialtely
+        /// </summary>
+        /// <param name="message">The message to send</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the async operation</param>
+        /// <exception cref="InvalidOperationException">Attempting to send a message before starting the bot will throw this exception.</exception>
+        public async Task SendAsync(OutgoingMessage message, CancellationToken cancellationToken)
+        {
+            if (this.botClient is null)
+            {
+                throw new InvalidOperationException("Cannot send message: Bot is not started");
+            }
+
+            await this.botClient.SendTextMessageAsync(
+                chatId: message.ChatId,
+                text: message.MessageText,
+                parseMode: message.ParseMode,
+                cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
         }
     }
 }
