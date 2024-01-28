@@ -180,7 +180,7 @@ public sealed class Worker : BackgroundService
             var mapsUrl = string.Format(UrlConstants.GoogleMapsUrl, lat, lon);
             var landingTime = args.PredicatedLandingTimeUtc.ToString();
 
-            var messageText = $"<b>Nearby Sonde Landing Alert!</b>\n\nTime: {landingTime}\nLocation: {lat}, Type: {args.Type} {lon}\n\n{sondeHubUrl}\n\n{mapsUrl}";
+            var messageText = $"<b>Nearby Sonde Landing Alert!</b>\n\nTime: {landingTime}\nLocation: {lat}, {lon}\n\nType: {args.Type}\n\n{sondeHubUrl}\n\n{mapsUrl}";
 
             var message = new OutgoingMessage(profile.ChatId, messageText, ParseMode.Html);
 
