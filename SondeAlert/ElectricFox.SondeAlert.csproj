@@ -1,16 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>dotnet-ElectricFox.SondeAlert-280d3e03-752a-438c-8458-d9d8934f8365</UserSecretsId>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>dotnet-ElectricFox.SondeAlert-280d3e03-752a-438c-8458-d9d8934f8365</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<ContainerRepository>fionasapphire/sondealert</ContainerRepository>
+		<ContainerFamily>jammy-chiseled-extra</ContainerFamily>
+		<ContainerRegistry>docker.io</ContainerRegistry>
+		<InvariantGlobalization>false</InvariantGlobalization>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Geolocation" Version="1.2.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
-    <PackageReference Include="Telegram.Bot" Version="19.0.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Geolocation" Version="1.2.1" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+		<PackageReference Include="MQTTnet" Version="4.3.3.952" />
+		<PackageReference Include="Telegram.Bot" Version="19.0.0" />
+		<PackageReference Include="NLog" Version="5.3.3" />
+		<PackageReference Include="NLog.Extensions.Logging" Version="5.3.12" />
+	    <PackageReference Include="NLog.Web.AspNetCore" Version="5.3.12" />
+	</ItemGroup>
 </Project>
