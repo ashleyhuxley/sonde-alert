@@ -24,7 +24,7 @@ builder.Services.AddLogging(
     }
 );
 
-builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<MqttWorker>();
 
 IConfigurationRoot configRoot = configBuilder.Build();
 
@@ -32,6 +32,7 @@ builder.Services.Configure<SondeAlertOptions>(configRoot.GetSection("SondeAlert"
 builder.Services.Configure<TelegramOptions>(configRoot.GetSection("Telegram"));
 builder.Services.Configure<SondeHubOptions>(configRoot.GetSection("SondeHub"));
 
+builder.Services.AddSingleton<UserProfiles>();
 builder.Services.AddSingleton<ITelegramBot, TelegramBot>();
 builder.Services.AddSingleton<IMqttListener, MqttListener>();
 
