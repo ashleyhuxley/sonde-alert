@@ -26,9 +26,7 @@ namespace ElectricFox.SondeAlert.Mqtt
         /// </summary>
         /// <param name="options">MQTT and location/range settings</param>
         /// <param name="logger">A logger to which to log information</param>
-        public MqttListener(
-            IOptions<SondeHubOptions> options, 
-            ILogger<MqttListener> logger)
+        public MqttListener(IOptions<SondeHubOptions> options, ILogger<MqttListener> logger)
         {
             this.options = options.Value.Verify();
             this.logger = logger;
@@ -49,17 +47,25 @@ namespace ElectricFox.SondeAlert.Mqtt
                 .WithWebSocketServer(builder => builder.WithUri(this.options.MqttUrl))
                 .Build();
 
-            var response = await this.mqttClient.ConnectAsync(mqttClientOptions, stoppingToken)
+            var response = await this.mqttClient
+                .ConnectAsync(mqttClientOptions, stoppingToken)
                 .ConfigureAwait(false);
 
-            this.logger.LogInformation($"The MQTT client is connected with response code {response.ResultCode}.");
+            this.logger.LogInformation(
+                $"The MQTT client is connected with response code {response.ResultCode}."
+            );
 
             // Subscribe to the Prediction topic
-            var mqttSubscribeOptions = mqttFactory.CreateSubscribeOptionsBuilder()
-                .WithTopicFilter(f => { f.WithTopic(PredictionTopic); })
+            var mqttSubscribeOptions = mqttFactory
+                .CreateSubscribeOptionsBuilder()
+                .WithTopicFilter(f =>
+                {
+                    f.WithTopic(PredictionTopic);
+                })
                 .Build();
 
-            await this.mqttClient.SubscribeAsync(mqttSubscribeOptions, stoppingToken)
+            await this.mqttClient
+                .SubscribeAsync(mqttSubscribeOptions, stoppingToken)
                 .ConfigureAwait(false);
 
             this.logger.LogInformation($"MQTT client subscribed to {PredictionTopic}.");
@@ -76,15 +82,20 @@ namespace ElectricFox.SondeAlert.Mqtt
             }
 
             var mqttFactory = new MqttFactory();
-            var mqttClientDisconnectOptions = mqttFactory.CreateClientDisconnectOptionsBuilder().Build();
-            await this.mqttClient.DisconnectAsync(mqttClientDisconnectOptions, stoppingToken)
+            var mqttClientDisconnectOptions = mqttFactory
+                .CreateClientDisconnectOptionsBuilder()
+                .Build();
+            await this.mqttClient
+                .DisconnectAsync(mqttClientDisconnectOptions, stoppingToken)
                 .ConfigureAwait(false);
         }
 
         private Task ClientMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
         {
             // Deserialize incoming MQTT message
-            var prediction = JsonSerializer.Deserialize<Prediction>(arg.ApplicationMessage.ConvertPayloadToString());
+            var prediction = JsonSerializer.Deserialize<Prediction>(
+                arg.ApplicationMessage.ConvertPayloadToString()
+            );
             if (prediction is null)
             {
                 this.logger.LogWarning("Unable to decode message");
@@ -102,10 +113,19 @@ namespace ElectricFox.SondeAlert.Mqtt
 
             var predictedDestination = new Coordinate(landingData.lat, landingData.lon);
 
-            this.logger.LogDebug($"Sonde {prediction.serial} predicted to land at {landingData.time.ToDateTime()} location: {landingData.lat}, {landingData.lon}");
+            this.logger.LogDebug(
+                $"Sonde {prediction.serial} predicted to land at {landingData.time.ToDateTime()} location: {landingData.lat}, {landingData.lon}"
+            );
 
             // Tell the world about it
-            this.OnSondeDataReady?.Invoke(new SondeAlertArgs(prediction.serial, predictedDestination, landingData.time.ToDateTime(), prediction.type));
+            this.OnSondeDataReady?.Invoke(
+                new SondeAlertArgs(
+                    prediction.serial,
+                    predictedDestination,
+                    landingData.time.ToDateTime(),
+                    prediction.type
+                )
+            );
             return Task.CompletedTask;
         }
 

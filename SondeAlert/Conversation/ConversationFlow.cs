@@ -12,14 +12,17 @@
         public double Range { get; set; } = 0;
         public double Latitude { get; set; }
         public double Longitude { get; set; }
+        public string? Callsign { get; set; }
 
-        private Dictionary<ConversationFlowPoint, IRequestHandler> questions => new()
-        {
-            { ConversationFlowPoint.Start, new StartRequestHandler() },
-            { ConversationFlowPoint.AwaitingCoords, new CoordinatesRequestHandler() },
-            { ConversationFlowPoint.Active, new DeactivateRequestHandler() },
-            { ConversationFlowPoint.AwaitingRange, new RangeRequestHandler() },
-        };
+        private Dictionary<ConversationFlowPoint, IRequestHandler> questions =>
+            new()
+            {
+                { ConversationFlowPoint.Start, new StartRequestHandler() },
+                { ConversationFlowPoint.AwaitingCoords, new CoordinatesRequestHandler() },
+                { ConversationFlowPoint.Active, new DeactivateRequestHandler() },
+                { ConversationFlowPoint.AwaitingRange, new RangeRequestHandler() },
+                { ConversationFlowPoint.Callsign, new CallsignRequestHandler() },
+            };
 
         public ConversationFlow(ConversationFlowPoint startingPoint)
         {

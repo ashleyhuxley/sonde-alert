@@ -15,8 +15,9 @@
             }
 
             flow.Range = range;
-            flow.ConversationFlowPoint = ConversationFlowPoint.Active;
-            return $"Thanks! You will now be alerted to sondes landing within {flow.Range}km of {flow.Latitude}, {flow.Longitude}.\n\nTo stop receiving alerts, type <pre>/stop</pre> at any time. Your data will be removed.";
+            flow.ConversationFlowPoint = ConversationFlowPoint.Callsign;
+
+            return "Thanks. If you would like to also be alerted of APRS messages sent to you, please enter your callsign. If you do not require this service, please type 'no'.";
         }
     }
 }

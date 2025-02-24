@@ -14,18 +14,21 @@ namespace ElectricFox.SondeAlert.Telegram
 
         private readonly ILogger<TelegramBot> logger;
 
+        private readonly IUpdateHandler updateHandler;
+
         private TelegramBotClient? botClient;
 
         private readonly Queue<OutgoingMessage> messageQueue = new();
 
-        public event Action<long, string>? OnMessageReceived;
-
         public TelegramBot(
             IOptions<TelegramOptions> options,
-            ILogger<TelegramBot> logger)
+            ILogger<TelegramBot> logger,
+            IUpdateHandler updateHandler
+        )
         {
             this.logger = logger;
             this.options = options.Value.Verify();
+            this.updateHandler = updateHandler;
         }
 
         /// <summary>
@@ -35,21 +38,17 @@ namespace ElectricFox.SondeAlert.Telegram
         {
             this.botClient = new TelegramBotClient(options.BotApiKey);
 
-            ReceiverOptions receiverOptions = new()
-            {
-                AllowedUpdates = Array.Empty<UpdateType>()
-            };
+            ReceiverOptions receiverOptions = new() { AllowedUpdates = Array.Empty<UpdateType>() };
 
-            this.botClient.StartReceiving(
-                updateHandler: this.HandleUpdateAsync,
-                pollingErrorHandler: this.HandlePollingErrorAsync,
-                receiverOptions: receiverOptions,
-                cancellationToken: cancellationToken
+            this.botClient.StartReceiving(updateHandler, receiverOptions, cancellationToken);
+
+            var me = await this.botClient.GetMe().ConfigureAwait(false);
+
+            this.logger.LogInformation(
+                "Logged in to Telegram as {firstName} with ID {id}.",
+                me.FirstName,
+                me.Id
             );
-
-            var me = await this.botClient.GetMeAsync().ConfigureAwait(false);
-
-            this.logger.LogInformation($"Logged in to Telegram as {me.FirstName} with ID {me.Id}.");
         }
 
         /// <summary>
@@ -66,51 +65,14 @@ namespace ElectricFox.SondeAlert.Telegram
 
             var message = this.messageQueue.Dequeue();
 
-            await this.botClient.SendTextMessageAsync(
-                chatId: message.ChatId,
-                text: message.MessageText,
-                parseMode: message.ParseMode,
-                cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-        }
-
-        private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
-        {
-            if (this.botClient is null) { return; }
-            if (update.Message is not { } message) { return; }
-            if (message.Text is not { } messageText) { return; }
-
-            var chatId = message.Chat.Id;
-
-            this.logger.LogDebug($"Received a '{messageText}' message in chat {chatId}.");
-
-            // Reject anything over 100 characters. Probably spam.
-            if (messageText.Length > 100)
-            {
-                await this.botClient.SendTextMessageAsync(
-                    chatId: chatId,
-                    text: "Sorry, that message is too long.".EscapeText(),
-                    parseMode: ParseMode.MarkdownV2,
-                    cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
-
-                return;
-            }
-
-            OnMessageReceived?.Invoke(chatId, messageText);
-        }
-
-        private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
-        {
-            var ErrorMessage = exception switch
-            {
-                ApiRequestException apiRequestException
-                    => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
-                _ => exception.ToString()
-            };
-
-            this.logger.LogError(ErrorMessage);
-            return Task.CompletedTask;
+            await this.botClient
+                .SendMessage(
+                    chatId: message.ChatId,
+                    text: message.MessageText,
+                    parseMode: message.ParseMode,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -135,12 +97,14 @@ namespace ElectricFox.SondeAlert.Telegram
                 throw new InvalidOperationException("Cannot send message: Bot is not started");
             }
 
-            await this.botClient.SendTextMessageAsync(
-                chatId: message.ChatId,
-                text: message.MessageText,
-                parseMode: message.ParseMode,
-                cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
+            await this.botClient
+                .SendMessage(
+                    chatId: message.ChatId,
+                    text: message.MessageText,
+                    parseMode: message.ParseMode,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(false);
         }
     }
 }

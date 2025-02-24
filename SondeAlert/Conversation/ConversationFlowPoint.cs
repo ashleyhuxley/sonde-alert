@@ -6,6 +6,7 @@
         AwaitingCoords,
         AwaitingRange,
         Active,
-        Deactivate
+        Deactivate,
+        Callsign,
     }
 }
