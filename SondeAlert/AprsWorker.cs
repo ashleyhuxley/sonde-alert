@@ -70,15 +70,14 @@ namespace ElectricFox.SondeAlert
                             continue;
                         }
 
-                        var timestamp = Convert.ToDouble(message.Time);
-                        var time = UnixTimeStampToDateTime(timestamp);
+                        var timestamp = Convert.ToInt64(message.Time).ToDateTime();
 
                         string messageText =
                             "<b>APRS Message</b>\n\n"
                             + $"<b>From:</b> {message.SourceCallsign}\n"
                             + $"<b>To:</b> {message.DestinationCallsign}\n"
                             + $"<b>Message:</b> {message.Message}\n"
-                            + $"<b>Received:</b> {time:dd:MM:yyyy hh:mm} UTC\n\n"
+                            + $"<b>Received:</b> {timestamp:dd:MM:yyyy hh:mm} UTC\n\n"
                             + "<i>Powered by <a href=\"https://aprs.fi/\">APRS.fi</a></i>";
 
                         var telegramMessage = new OutgoingMessage(
@@ -98,11 +97,6 @@ namespace ElectricFox.SondeAlert
                     stoppingToken
                 );
             }
-        }
-
-        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
-        {
-            return DateTime.UnixEpoch.AddSeconds(unixTimeStamp);
         }
     }
 }
