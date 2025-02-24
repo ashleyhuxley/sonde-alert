@@ -1,8 +1,7 @@
 using ElectricFox.SondeAlert.Mqtt;
-using ElectricFox.SondeAlert.Options;
+using ElectricFox.SondeAlert.Redis;
 using ElectricFox.SondeAlert.Telegram;
 using Geolocation;
-using Microsoft.Extensions.Options;
 using Telegram.Bot.Types.Enums;
 
 namespace ElectricFox.SondeAlert;
@@ -13,9 +12,7 @@ public sealed class MqttWorker : BackgroundService
 
     private readonly IMqttListener mqttListener;
 
-    private readonly SondeAlertOptions options;
-
-    private readonly List<NotificationCacheEntry> NotificationCache = new();
+    private readonly NotificationCache redisCache;
 
     private readonly UserProfiles userProfiles;
 
@@ -23,46 +20,50 @@ public sealed class MqttWorker : BackgroundService
 
     public MqttWorker(
         ILogger<MqttWorker> logger,
-        IOptions<SondeAlertOptions> options,
         IMqttListener mqttListener,
         UserProfiles userProfiles,
-        ITelegramBot bot
+        ITelegramBot bot,
+        NotificationCache redisCache
     )
     {
         this.logger = logger;
-        this.options = options.Value.Verify();
         this.mqttListener = mqttListener;
         this.userProfiles = userProfiles;
         this.bot = bot;
+        this.redisCache = redisCache;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        this.logger.LogInformation("Worker started.");
+        logger.LogInformation("Worker started.");
 
-        // Set up MQTT listener
-        this.mqttListener.OnSondeDataReady += this.OnSondeDataReady;
-        await this.mqttListener.StartAsync(stoppingToken);
+        mqttListener.OnSondeDataReady += OnSondeDataReady;
+        await mqttListener.StartAsync(stoppingToken);
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            await Task.Delay(this.options.ProcessTimerSeconds * 1000, stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+            }
         }
-
-        await this.mqttListener.StopAsync(stoppingToken);
+        finally
+        {
+            mqttListener.OnSondeDataReady -= OnSondeDataReady;
+            await mqttListener.StopAsync(stoppingToken);
+            logger.LogInformation("Worker stopped.");
+        }
     }
 
     private void OnSondeDataReady(SondeAlertArgs args)
     {
+        _ = Task.Run(() => HandleSondeDataAsync(args));
+    }
+
+    private async Task HandleSondeDataAsync(SondeAlertArgs args)
+    {
         foreach (var profile in this.userProfiles.GetAllProfiles())
         {
-            var cacheEntry = new NotificationCacheEntry(profile.ChatId, args.SondeSerial);
-
-            if (this.NotificationCache.Contains(cacheEntry))
-            {
-                continue;
-            }
-
             var distance = GeoCalculator.GetDistance(
                 profile.Home,
                 args.PredictedlandingLocation,
@@ -71,6 +72,11 @@ public sealed class MqttWorker : BackgroundService
             );
 
             if (distance > profile.Range)
+            {
+                continue;
+            }
+
+            if (!await redisCache.ShouldSendSondeNotification(profile.ChatId, args.SondeSerial))
             {
                 continue;
             }
@@ -88,7 +94,8 @@ public sealed class MqttWorker : BackgroundService
             var message = new OutgoingMessage(profile.ChatId, messageText, ParseMode.Html);
 
             this.bot.Enqueue(message);
-            this.NotificationCache.Add(cacheEntry);
+
+            await this.redisCache.SaveSondeNotification(profile.ChatId, args.SondeSerial);
         }
     }
 }

@@ -10,7 +10,8 @@
                 return "Invalid input! Please try again.";
             }
 
-            double lat, lon;
+            double lat,
+                lon;
             if (!double.TryParse(coordsStr[0], out lat) || !double.TryParse(coordsStr[1], out lon))
             {
                 return "Invalid input! Please try again.";

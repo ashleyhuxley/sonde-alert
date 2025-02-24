@@ -12,9 +12,7 @@ namespace ElectricFox.SondeAlert
 
         private readonly SondeAlertOptions options;
 
-        public UserProfiles(
-            ILogger<UserProfiles> logger,
-            IOptions<SondeAlertOptions> options)
+        public UserProfiles(ILogger<UserProfiles> logger, IOptions<SondeAlertOptions> options)
         {
             this.logger = logger;
             this.options = options.Value;
