@@ -11,13 +11,13 @@ namespace ElectricFox.SondeAlert.Mqtt
     {
         public event Action<SondeAlertArgs>? OnSondeDataReady;
 
-        private readonly SondeHubOptions options;
+        private readonly SondeHubOptions _options;
 
-        private readonly ILogger<MqttListener> logger;
+        private readonly ILogger<MqttListener> _logger;
 
-        private bool disposedValue;
+        private bool _disposedValue;
 
-        private IMqttClient? mqttClient;
+        private IMqttClient? _mqttClient;
 
         private const string PredictionTopic = "prediction/#";
 
@@ -28,8 +28,8 @@ namespace ElectricFox.SondeAlert.Mqtt
         /// <param name="logger">A logger to which to log information</param>
         public MqttListener(IOptions<SondeHubOptions> options, ILogger<MqttListener> logger)
         {
-            this.options = options.Value.Verify();
-            this.logger = logger;
+            _options = options.Value.Verify();
+            _logger = logger;
         }
 
         /// <summary>
@@ -39,20 +39,21 @@ namespace ElectricFox.SondeAlert.Mqtt
         {
             // Create client
             var mqttFactory = new MqttFactory();
-            this.mqttClient = mqttFactory.CreateMqttClient();
-            this.mqttClient.ApplicationMessageReceivedAsync += this.ClientMessageReceivedAsync;
+            _mqttClient = mqttFactory.CreateMqttClient();
+            _mqttClient.ApplicationMessageReceivedAsync += ClientMessageReceivedAsync;
 
             // Connect to MQTT
             var mqttClientOptions = new MqttClientOptionsBuilder()
-                .WithWebSocketServer(builder => builder.WithUri(this.options.MqttUrl))
+                .WithWebSocketServer(builder => builder.WithUri(_options.MqttUrl))
                 .Build();
 
-            var response = await this.mqttClient
+            var response = await _mqttClient
                 .ConnectAsync(mqttClientOptions, stoppingToken)
                 .ConfigureAwait(false);
 
-            this.logger.LogInformation(
-                $"The MQTT client is connected with response code {response.ResultCode}."
+            _logger.LogInformation(
+                "The MQTT client is connected with response code {responseCode}.",
+                response.ResultCode
             );
 
             // Subscribe to the Prediction topic
@@ -64,11 +65,11 @@ namespace ElectricFox.SondeAlert.Mqtt
                 })
                 .Build();
 
-            await this.mqttClient
+            await _mqttClient
                 .SubscribeAsync(mqttSubscribeOptions, stoppingToken)
                 .ConfigureAwait(false);
 
-            this.logger.LogInformation($"MQTT client subscribed to {PredictionTopic}.");
+            _logger.LogInformation($"MQTT client subscribed to {PredictionTopic}.");
         }
 
         /// <summary>
@@ -76,7 +77,7 @@ namespace ElectricFox.SondeAlert.Mqtt
         /// </summary>
         public async Task StopAsync(CancellationToken stoppingToken)
         {
-            if (this.mqttClient is null)
+            if (_mqttClient is null)
             {
                 return;
             }
@@ -85,7 +86,7 @@ namespace ElectricFox.SondeAlert.Mqtt
             var mqttClientDisconnectOptions = mqttFactory
                 .CreateClientDisconnectOptionsBuilder()
                 .Build();
-            await this.mqttClient
+            await _mqttClient
                 .DisconnectAsync(mqttClientDisconnectOptions, stoppingToken)
                 .ConfigureAwait(false);
         }
@@ -98,13 +99,13 @@ namespace ElectricFox.SondeAlert.Mqtt
             );
             if (prediction is null)
             {
-                this.logger.LogWarning("Unable to decode message");
+                _logger.LogWarning("Unable to decode message");
                 return Task.CompletedTask;
             }
 
             if (!prediction.data.Any())
             {
-                this.logger.LogWarning("No prediction data found");
+                _logger.LogWarning("No prediction data found");
                 return Task.CompletedTask;
             }
 
@@ -113,12 +114,16 @@ namespace ElectricFox.SondeAlert.Mqtt
 
             var predictedDestination = new Coordinate(landingData.lat, landingData.lon);
 
-            this.logger.LogDebug(
-                $"Sonde {prediction.serial} predicted to land at {landingData.time.ToDateTime()} location: {landingData.lat}, {landingData.lon}"
+            _logger.LogDebug(
+                "Sonde {serial} predicted to land at {dateTime} location: {lat}, {lon}",
+                prediction.serial,
+                landingData.time.ToDateTime(),
+                landingData.lat,
+                landingData.lon
             );
 
             // Tell the world about it
-            this.OnSondeDataReady?.Invoke(
+            OnSondeDataReady?.Invoke(
                 new SondeAlertArgs(
                     prediction.serial,
                     predictedDestination,
@@ -131,21 +136,21 @@ namespace ElectricFox.SondeAlert.Mqtt
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!this.disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
-                    this.mqttClient?.Dispose();
+                    _mqttClient?.Dispose();
                 }
 
-                this.mqttClient = null;
-                this.disposedValue = true;
+                _mqttClient = null;
+                _disposedValue = true;
             }
         }
 
         public void Dispose()
         {
-            this.Dispose(disposing: true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
     }
