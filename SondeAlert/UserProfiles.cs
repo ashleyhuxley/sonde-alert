@@ -1,5 +1,6 @@
 ﻿using ElectricFox.SondeAlert.Options;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace ElectricFox.SondeAlert
@@ -8,7 +9,7 @@ namespace ElectricFox.SondeAlert
     {
         private readonly ILogger<UserProfiles> _logger;
 
-        private readonly List<UserProfile> _profiles = [];
+        private readonly ConcurrentDictionary<long, UserProfile> _profiles = [];
 
         private readonly SondeAlertOptions _options;
 
@@ -24,28 +25,33 @@ namespace ElectricFox.SondeAlert
 
         public void AddUserProfile(UserProfile profile)
         {
-            this._profiles.Add(profile);
+            this._profiles.TryAdd(profile.ChatId, profile);
             this.SaveUserProfiles();
         }
 
         public void RemoveUserProfile(long chatId)
         {
-            var profile = this._profiles.SingleOrDefault(p => p.ChatId == chatId);
-            if (profile is not null)
-            {
-                this._profiles.Remove(profile);
-                this.SaveUserProfiles();
-            }
-        }
-
-        public IEnumerable<UserProfile> GetAllProfiles()
-        {
-            return this._profiles;
+            _profiles.TryRemove(chatId, out _);
+            this.SaveUserProfiles();
         }
 
         public bool HasProfile(long chatId)
         {
-            return this._profiles.Any(p => p.ChatId == chatId);
+            return this._profiles.ContainsKey(chatId);
+        }
+
+        public UserProfile? GetProfileByCallsign(string callsign)
+        {
+            return _profiles.Values.FirstOrDefault(p => p.Callsign == callsign);
+        }
+
+        public string[] GetAllCallsigns()
+        {
+            return _profiles
+                .Values
+                .Select(p => p.Callsign ?? string.Empty)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .ToArray();
         }
 
         public void LoadUserProfiles()
@@ -55,30 +61,34 @@ namespace ElectricFox.SondeAlert
                 if (!_isLoaded)
                 {
                     if (
-                        this._options.ProfilePath is null || !File.Exists(this._options.ProfilePath)
+                        _options.ProfilePath is null || !File.Exists(_options.ProfilePath)
                     )
                     {
-                        this._logger.LogWarning("Profiles file does not exist, skipping load.");
+                        _logger.LogWarning("Profiles file does not exist, skipping load.");
                         return;
                     }
 
-                    this._logger.LogInformation(
+                    _logger.LogInformation(
                         "Loading profiles from {path}",
-                        this._options.ProfilePath
+                        _options.ProfilePath
                     );
 
                     try
                     {
-                        var profilesJson = File.ReadAllText(this._options.ProfilePath);
+                        var profilesJson = File.ReadAllText(_options.ProfilePath);
                         var profiles = JsonSerializer.Deserialize<IEnumerable<UserProfile>>(
                             profilesJson
                         ) ?? throw new JsonException("Profiles deserialized to null");
-                        this._profiles.Clear();
-                        this._profiles.AddRange(profiles);
+                        
+                        _profiles.Clear();
+                        foreach (var profile in profiles)
+                        {
+                            _profiles.TryAdd(profile.ChatId, profile);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        this._logger.LogCritical(
+                        _logger.LogCritical(
                             ex,
                             "Exception saving profiles: {message}",
                             ex.Message
@@ -86,7 +96,7 @@ namespace ElectricFox.SondeAlert
                         return;
                     }
 
-                    this._logger.LogInformation(
+                    _logger.LogInformation(
                         "{profilesCount} profiles loaded.",
                         _profiles.Count
                     );
@@ -98,12 +108,12 @@ namespace ElectricFox.SondeAlert
 
         private void SaveUserProfiles()
         {
-            if (this._options.ProfilePath is null)
+            if (_options.ProfilePath is null)
             {
                 return;
             }
 
-            this._logger.LogInformation(
+            _logger.LogInformation(
                 "Saving {profilesCount} user profiles to {path}",
                 _profiles.Count,
                 _options.ProfilePath
@@ -111,13 +121,18 @@ namespace ElectricFox.SondeAlert
 
             try
             {
-                var json = JsonSerializer.Serialize(this._profiles);
-                File.WriteAllText(this._options.ProfilePath, json);
+                var json = JsonSerializer.Serialize(_profiles);
+                File.WriteAllText(_options.ProfilePath, json);
             }
             catch (Exception ex)
             {
-                this._logger.LogCritical(ex, "Exception saving profiles: {message}", ex.Message);
+                _logger.LogCritical(ex, "Exception saving profiles: {message}", ex.Message);
             }
+        }
+
+        internal IEnumerable<UserProfile> GetAllProfiles()
+        {
+            return _profiles.Values;
         }
     }
 }

@@ -36,14 +36,10 @@ namespace ElectricFox.SondeAlert
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _userProfiles.LoadUserProfiles();
-            var allProfiles = this._userProfiles.GetAllProfiles();
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var allCalls = allProfiles
-                    .Select(p => p.Callsign ?? string.Empty)
-                    .Where(c => !string.IsNullOrEmpty(c))
-                    .ToArray();
+                var allCalls = _userProfiles.GetAllCallsigns();
 
                 if (allCalls.Any())
                 {
@@ -56,9 +52,7 @@ namespace ElectricFox.SondeAlert
 
                     foreach (var message in messages)
                     {
-                        var recipient = allProfiles.FirstOrDefault(
-                            p => p.Callsign == message.DestinationCallsign
-                        );
+                        var recipient = _userProfiles.GetProfileByCallsign(message.DestinationCallsign);
 
                         if (
                             recipient?.Callsign is null
