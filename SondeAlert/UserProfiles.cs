@@ -121,7 +121,7 @@ namespace ElectricFox.SondeAlert
 
             try
             {
-                var json = JsonSerializer.Serialize(_profiles);
+                var json = JsonSerializer.Serialize(_profiles.Values.ToList());
                 File.WriteAllText(_options.ProfilePath, json);
             }
             catch (Exception ex)
