@@ -48,4 +48,5 @@ builder.Services.AddHostedService<TelegramWorker>();
 builder.Services.AddHostedService<AprsWorker>();
 
 var host = builder.Build();
+
 host.Run();

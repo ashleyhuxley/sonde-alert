@@ -6,95 +6,117 @@ namespace ElectricFox.SondeAlert
 {
     public class UserProfiles
     {
-        private readonly ILogger<UserProfiles> logger;
+        private readonly ILogger<UserProfiles> _logger;
 
-        private readonly List<UserProfile> Profiles = new();
+        private readonly List<UserProfile> _profiles = [];
 
-        private readonly SondeAlertOptions options;
+        private readonly SondeAlertOptions _options;
+
+        private bool _isLoaded = false;
+
+        private readonly object _lock = new();
 
         public UserProfiles(ILogger<UserProfiles> logger, IOptions<SondeAlertOptions> options)
         {
-            this.logger = logger;
-            this.options = options.Value;
+            this._logger = logger;
+            this._options = options.Value;
         }
 
         public void AddUserProfile(UserProfile profile)
         {
-            this.Profiles.Add(profile);
+            this._profiles.Add(profile);
             this.SaveUserProfiles();
         }
 
         public void RemoveUserProfile(long chatId)
         {
-            var profile = this.Profiles.SingleOrDefault(p => p.ChatId == chatId);
+            var profile = this._profiles.SingleOrDefault(p => p.ChatId == chatId);
             if (profile is not null)
             {
-                this.Profiles.Remove(profile);
+                this._profiles.Remove(profile);
                 this.SaveUserProfiles();
             }
         }
 
         public IEnumerable<UserProfile> GetAllProfiles()
         {
-            return this.Profiles;
+            return this._profiles;
         }
 
         public bool HasProfile(long chatId)
         {
-            return this.Profiles.Any(p => p.ChatId == chatId);
+            return this._profiles.Any(p => p.ChatId == chatId);
         }
 
         public void LoadUserProfiles()
         {
-            if (this.options.ProfilePath is null || !File.Exists(this.options.ProfilePath))
+            lock (_lock)
             {
-                this.logger.LogWarning("Profiles file does not exist, skipping load.");
-                return;
-            }
-
-            this.logger.LogInformation($"Loading profiles from {this.options.ProfilePath}");
-
-            try
-            {
-                var profilesJson = File.ReadAllText(this.options.ProfilePath);
-                var profiles = JsonSerializer.Deserialize<IEnumerable<UserProfile>>(profilesJson);
-
-                if (profiles is null)
+                if (!_isLoaded)
                 {
-                    throw new JsonException("Profiles deserialized to null");
+                    if (
+                        this._options.ProfilePath is null || !File.Exists(this._options.ProfilePath)
+                    )
+                    {
+                        this._logger.LogWarning("Profiles file does not exist, skipping load.");
+                        return;
+                    }
+
+                    this._logger.LogInformation(
+                        "Loading profiles from {path}",
+                        this._options.ProfilePath
+                    );
+
+                    try
+                    {
+                        var profilesJson = File.ReadAllText(this._options.ProfilePath);
+                        var profiles = JsonSerializer.Deserialize<IEnumerable<UserProfile>>(
+                            profilesJson
+                        ) ?? throw new JsonException("Profiles deserialized to null");
+                        this._profiles.Clear();
+                        this._profiles.AddRange(profiles);
+                    }
+                    catch (Exception ex)
+                    {
+                        this._logger.LogCritical(
+                            ex,
+                            "Exception saving profiles: {message}",
+                            ex.Message
+                        );
+                        return;
+                    }
+
+                    this._logger.LogInformation(
+                        "{profilesCount} profiles loaded.",
+                        _profiles.Count
+                    );
+
+                    _isLoaded = true;
                 }
-
-                this.Profiles.Clear();
-                this.Profiles.AddRange(profiles);
             }
-            catch (Exception ex)
-            {
-                this.logger.LogCritical(ex, $"Exception saving profiles: {ex.Message}");
-                return;
-            }
-
-            this.logger.LogInformation($"{this.Profiles.Count} profiles loaded.");
         }
 
         private void SaveUserProfiles()
         {
-            if (this.options.ProfilePath is null)
+            if (this._options.ProfilePath is null)
             {
                 return;
             }
 
-            this.logger.LogInformation(
-                $"Saving {this.Profiles.Count} user profiles to {this.options.ProfilePath}"
+            this._logger.LogInformation(
+                "Saving {profilesCount} user profiles to {path}",
+                _profiles.Count,
+                _options.ProfilePath
             );
 
             try
             {
-                var json = JsonSerializer.Serialize(this.Profiles);
-                File.WriteAllText(this.options.ProfilePath, json);
+                var json = JsonSerializer.Serialize(this._profiles);
+                File.WriteAllText(this._options.ProfilePath, json);
             }
             catch (Exception ex)
             {
-                this.logger.LogCritical(ex, $"Exception saving profiles: {ex.Message}");
+                this._logger.LogCritical(ex, "Exception saving profiles: {message}", ex.Message);
             }
         }
     }

@@ -8,15 +8,15 @@ namespace ElectricFox.SondeAlert;
 
 public sealed class MqttWorker : BackgroundService
 {
-    private readonly ILogger<MqttWorker> logger;
+    private readonly ILogger<MqttWorker> _logger;
 
-    private readonly IMqttListener mqttListener;
+    private readonly IMqttListener _mqttListener;
 
-    private readonly NotificationCache redisCache;
+    private readonly NotificationCache _redisCache;
 
-    private readonly UserProfiles userProfiles;
+    private readonly UserProfiles _userProfiles;
 
-    private readonly ITelegramBot bot;
+    private readonly ITelegramBot _bot;
 
     public MqttWorker(
         ILogger<MqttWorker> logger,
@@ -26,19 +26,21 @@ public sealed class MqttWorker : BackgroundService
         NotificationCache redisCache
     )
     {
-        this.logger = logger;
-        this.mqttListener = mqttListener;
-        this.userProfiles = userProfiles;
-        this.bot = bot;
-        this.redisCache = redisCache;
+        _logger = logger;
+        _mqttListener = mqttListener;
+        _userProfiles = userProfiles;
+        _bot = bot;
+        _redisCache = redisCache;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Worker started.");
+        _logger.LogInformation("Worker started.");
 
-        mqttListener.OnSondeDataReady += OnSondeDataReady;
-        await mqttListener.StartAsync(stoppingToken);
+        _userProfiles.LoadUserProfiles();
+
+        _mqttListener.OnSondeDataReady += OnSondeDataReady;
+        await _mqttListener.StartAsync(stoppingToken);
 
         try
         {
@@ -49,9 +51,9 @@ public sealed class MqttWorker : BackgroundService
         }
         finally
         {
-            mqttListener.OnSondeDataReady -= OnSondeDataReady;
-            await mqttListener.StopAsync(stoppingToken);
-            logger.LogInformation("Worker stopped.");
+            _mqttListener.OnSondeDataReady -= OnSondeDataReady;
+            await _mqttListener.StopAsync(stoppingToken);
+            _logger.LogInformation("Worker stopped.");
         }
     }
 
@@ -62,7 +64,7 @@ public sealed class MqttWorker : BackgroundService
 
     private async Task HandleSondeDataAsync(SondeAlertArgs args)
     {
-        foreach (var profile in this.userProfiles.GetAllProfiles())
+        foreach (var profile in _userProfiles.GetAllProfiles())
         {
             var distance = GeoCalculator.GetDistance(
                 profile.Home,
@@ -76,7 +78,7 @@ public sealed class MqttWorker : BackgroundService
                 continue;
             }
 
-            if (!await redisCache.ShouldSendSondeNotification(profile.ChatId, args.SondeSerial))
+            if (!await _redisCache.ShouldSendSondeNotification(profile.ChatId, args.SondeSerial))
             {
                 continue;
             }
@@ -93,9 +95,9 @@ public sealed class MqttWorker : BackgroundService
 
             var message = new OutgoingMessage(profile.ChatId, messageText, ParseMode.Html);
 
-            this.bot.Enqueue(message);
+            _bot.Enqueue(message);
 
-            await this.redisCache.SaveSondeNotification(profile.ChatId, args.SondeSerial);
+            await _redisCache.SaveSondeNotification(profile.ChatId, args.SondeSerial);
         }
     }
 }

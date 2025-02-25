@@ -35,6 +35,7 @@ namespace ElectricFox.SondeAlert
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _userProfiles.LoadUserProfiles();
             var allProfiles = this._userProfiles.GetAllProfiles();
 
             while (!stoppingToken.IsCancellationRequested)
