@@ -69,7 +69,7 @@ namespace ElectricFox.SondeAlert
 
                         string messageText =
                             "<b>APRS Message</b>\n\n"
-                            + $"<b>Message ID</b> {message.MessageId}"
+                            + $"<b>Message ID</b> {message.MessageId}\n"
                             + $"<b>From:</b> {message.SourceCallsign}\n"
                             + $"<b>To:</b> {message.DestinationCallsign}\n"
                             + $"<b>Message:</b> {message.Message}\n"
